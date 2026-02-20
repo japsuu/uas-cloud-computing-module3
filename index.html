@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Llama vs Ducky</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    body { margin: 24px; max-width: 980px; }
+    h1 { margin: 0 0 8px; font-size: 22px; }
+    .muted { color: #555; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+    @media (max-width: 900px) { .row { grid-template-columns: 1fr; } }
+    .card { border: 1px solid #ddd; border-radius: 10px; padding: 14px; }
+    .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    button { padding: 8px 12px; border-radius: 8px; border: 1px solid #ccc; background: #f7f7f7; cursor: pointer; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    input[type="file"] { padding: 6px; border: 1px dashed #aaa; border-radius: 10px; }
+    #dropZone {
+      border: 2px dashed #bbb; border-radius: 10px; padding: 14px;
+      text-align: center; user-select: none;
+    }
+    #dropZone.dragover { border-color: #666; background: #fafafa; }
+    #preview { width: 100%; max-height: 420px; object-fit: contain; background: #fff; border-radius: 10px; border: 1px solid #eee; }
+    .kv { display: grid; grid-template-columns: 180px 1fr; gap: 6px 10px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+    .big { font-size: 18px; font-weight: 700; }
+    .ok { color: #0a6; }
+    .warn { color: #b60; }
+    .err { color: #b00; }
+  </style>
+</head>
+<body>
+  <h1>Teachable Machine Classifier</h1>
+  <div class="muted">Upload a photo. The page will classify it as either a llama or a ducky.</div>
+
+  <div class="card" style="margin-top:14px;">
+    <div class="kv">
+      <div class="muted">Model URL</div>
+      <div class="mono" id="modelUrlText"></div>
+
+      <div class="muted">Status</div>
+      <div id="status" class="mono">Not loaded</div>
+
+      <div class="muted">Top prediction</div>
+      <div id="top" class="big">—</div>
+
+      <div class="muted">Probabilities</div>
+      <div id="probs" class="mono">—</div>
+    </div>
+  </div>
+
+  <div class="row" style="margin-top:16px;">
+    <div class="card">
+      <div class="controls">
+        <button id="loadBtn" type="button">Load model</button>
+        <button id="predictBtn" type="button" disabled>Predict</button>
+        <input id="fileInput" type="file" accept="image/*" />
+      </div>
+
+      <div id="dropZone" style="margin-top:12px;">
+        Drag & drop an image here (or use the file picker)
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="muted" style="margin-bottom:8px;">Image preview</div>
+      <img id="preview" alt="preview" />
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+
+  <script>
+    const MODEL_BASE_URL = "https://teachablemachine.withgoogle.com/models/JvGAj-fj8/";
+
+    const elModelUrlText = document.getElementById("modelUrlText");
+    const elStatus = document.getElementById("status");
+    const elTop = document.getElementById("top");
+    const elProbs = document.getElementById("probs");
+    const elLoadBtn = document.getElementById("loadBtn");
+    const elPredictBtn = document.getElementById("predictBtn");
+    const elFileInput = document.getElementById("fileInput");
+    const elDropZone = document.getElementById("dropZone");
+    const elPreview = document.getElementById("preview");
+
+    elModelUrlText.textContent = MODEL_BASE_URL;
+
+    let model = null;
+    let maxPredictions = 0;
+    let imageReady = false;
+
+    function setStatus(text, level) {
+      elStatus.textContent = text;
+      elStatus.className = "mono " + (level || "");
+    }
+
+    function setTop(text, level) {
+      elTop.textContent = text;
+      elTop.className = "big " + (level || "");
+    }
+
+    function setProbs(lines) {
+      elProbs.textContent = lines;
+    }
+
+    async function loadModel() {
+      try {
+        setStatus("Loading model...", "warn");
+        setTop("-", "");
+        setProbs("-");
+
+        const modelURL = MODEL_BASE_URL + "model.json";
+        const metadataURL = MODEL_BASE_URL + "metadata.json";
+
+        // Load the image model
+        model = await tmImage.load(modelURL, metadataURL);
+        maxPredictions = model.getTotalClasses();
+
+        setStatus(`Loaded. Classes: ${maxPredictions}.`, "ok");
+        elPredictBtn.disabled = !imageReady;
+      } catch (e) {
+        console.error(e);
+        setStatus("Failed to load model (see console).", "err");
+        model = null;
+        maxPredictions = 0;
+        elPredictBtn.disabled = true;
+      }
+    }
+
+    async function predict() {
+      if (!model) {
+        setStatus("Model not loaded. Click 'Load model'.", "warn");
+        return;
+      }
+      if (!imageReady) {
+        setStatus("No image loaded. Upload an image first.", "warn");
+        return;
+      }
+
+      try {
+        setStatus("Predicting...", "warn");
+
+        const predictions = await model.predict(elPreview);
+
+        predictions.sort((a, b) => b.probability - a.probability);
+
+        const top = predictions[0];
+        const topPct = (top.probability * 100).toFixed(1);
+
+        const level =
+          top.probability >= 0.90 ? "ok" :
+          top.probability >= 0.70 ? "warn" :
+          "";
+
+        setTop(`${top.className} (${topPct}%)`, level);
+
+        const lines = predictions
+          .map(p => `${p.className}: ${(p.probability * 100).toFixed(2)}%`)
+          .join("\n");
+        setProbs(lines);
+
+        setStatus("Done.", "ok");
+      } catch (e) {
+        console.error(e);
+        setStatus("Prediction failed (see console).", "err");
+      }
+    }
+
+    function loadImageFile(file) {
+      if (!file) return;
+      if (!file.type || !file.type.startsWith("image/")) {
+        setStatus("Not an image file.", "warn");
+        return;
+      }
+
+      const url = URL.createObjectURL(file);
+      imageReady = false;
+      elPredictBtn.disabled = true;
+
+      elPreview.onload = () => {
+        imageReady = true;
+        URL.revokeObjectURL(url);
+        setStatus(model ? "Image loaded. Ready to predict." : "Image loaded. Load model next.", "ok");
+        elPredictBtn.disabled = !model;
+        if (model) predict();
+      };
+      elPreview.onerror = () => {
+        imageReady = false;
+        setStatus("Failed to load image.", "err");
+        elPredictBtn.disabled = true;
+      };
+
+      elPreview.src = url;
+    }
+
+    elLoadBtn.addEventListener("click", loadModel);
+    elPredictBtn.addEventListener("click", predict);
+    elFileInput.addEventListener("change", (e) => loadImageFile(e.target.files?.[0]));
+
+    elDropZone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      elDropZone.classList.add("dragover");
+    });
+    elDropZone.addEventListener("dragleave", () => elDropZone.classList.remove("dragover"));
+    elDropZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      elDropZone.classList.remove("dragover");
+      const file = e.dataTransfer?.files?.[0];
+      loadImageFile(file);
+    });
+
+    // Initial UI state
+    setStatus("Not loaded. Click 'Load model'.", "warn");
+    setTop("-", "");
+    setProbs("-");
+  </script>
+</body>
+</html>
