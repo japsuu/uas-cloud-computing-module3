@@ -1,4 +1,4 @@
-\# Llama vs Ducky
+# Llama vs Ducky
 
 
 
@@ -6,7 +6,7 @@ This project hosts a simple image classification web application built using Goo
 
 
 
-\## What It Does
+## What It Does
 
 
 
@@ -18,7 +18,7 @@ The model is loaded directly from Google Teachable Machine and runs entirely in 
 
 
 
-There is \*\*no backend\*\*, all inference happens client-side.
+There is **no backend**, all inference happens client-side.
 
 
 
@@ -26,11 +26,11 @@ There is \*\*no backend\*\*, all inference happens client-side.
 
 
 
-\## How to Use
+## How to Use
 
 
 
-1\. Open the deployed page:
+1. Open the deployed page:
 
 
 
@@ -38,11 +38,9 @@ https://japsuu.github.io/uas-cloud-computing-module3/
 
 
 
-2\. Click "Load Model"
-
-3\. Upload an image (llama or duck)
-
-4\. View prediction results and probabilities
+2. Click "Load Model"
+3. Upload an image (llama or duck)
+4. View prediction results and probabilities
 
 
 
@@ -50,7 +48,7 @@ https://japsuu.github.io/uas-cloud-computing-module3/
 
 
 
-\## Deployment
+## Deployment
 
 
 
@@ -58,11 +56,9 @@ This project is deployed using GitHub Pages:
 
 
 
-\- Static hosting
-
-\- No build step required
-
-\- Fully client-side
+- Static hosting
+- No build step required
+- Fully client-side
 
 
 
@@ -70,15 +66,15 @@ This project is deployed using GitHub Pages:
 
 
 
-\## Technologies Used
+## Technologies Used
 
 
 
-\- HTML / CSS
+- HTML / CSS
 
-\- TensorFlow.js (via CDN)
+- TensorFlow.js (via CDN)
 
-\- Google Teachable Machine
+- Google Teachable Machine
 
-\- GitHub Pages
+- GitHub Pages
 
